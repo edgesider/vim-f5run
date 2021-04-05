@@ -21,21 +21,19 @@ let s:cmds = {
             \ 'haskell': 'runhaskell %'
             \}
 
+let g:f5#cmds = get(g:, 'f5#cmds', {})
 let g:f5#pos = get(g:, 'f5#pos', s:default_pos)
 
 func! s:GetCommand(filetype)
-    return expandcmd(get(s:cmds, a:filetype, ''))
+    let cmd = get(g:f5#cmds, a:filetype, '')
+    if len(cmd) == 0
+        let cmd = get(s:cmds, a:filetype, '')
+    endif
+    return expandcmd(cmd)
 endfunc
 
 func! s:GetPosInfo()
     return get(s:postions, g:f5#pos, get(s:postions, s:default_pos))
-endfunc
-
-func! s:TermStart(cmd, curwin, vert)
-    call term_start(['bash', '-c', a:cmd],
-                \ {'term_name': "F5: " . a:cmd,
-                \ 'vertical': a:vert,
-                \ 'curwin': a:curwin})
 endfunc
 
 func! s:RunInShell(cmd)
@@ -55,19 +53,21 @@ func! s:RunInShell(cmd)
     endif
     let posinfo = s:GetPosInfo()
     if curwin
-        call s:TermStart(a:cmd, 1, 0)
+        call term_start(['bash', '-c', a:cmd],
+                    \ {'term_name': 'F5: ' . a:cmd,
+                    \ 'curwin': 1})
     else
         let vert = get(posinfo, 'vert')
         let rb = get(posinfo, 'rb')
         if rb
-            exec "rightbelow call term_start(" .
-                        \ "['bash', '-c', a:cmd]," .
+            exec "rightbelow call term_start("
+                        \ "['bash', '-c', a:cmd],"
                         \ "{'term_name': 'F5: ' . a:cmd,"
                         \ "'vertical': vert,"
                         \ "'curwin': 0})"
         else
-            exec "leftabove call term_start(" .
-                        \ "['bash', '-c', a:cmd]," .
+            exec "leftabove call term_start("
+                        \ "['bash', '-c', a:cmd],"
                         \ "{'term_name': 'F5: ' . a:cmd,"
                         \ "'vertical': vert,"
                         \ "'curwin': 0})"
