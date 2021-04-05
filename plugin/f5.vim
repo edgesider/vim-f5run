@@ -31,9 +31,16 @@ func! s:GetPosInfo()
     return get(s:postions, g:f5#pos, get(s:postions, s:default_pos))
 endfunc
 
+func! s:TermStart(cmd, curwin, vert)
+    call term_start(['bash', '-c', a:cmd],
+                \ {'term_name': "F5: " . a:cmd,
+                \ 'vertical': a:vert,
+                \ 'curwin': a:curwin})
+endfunc
+
 func! s:RunInShell(cmd)
     let curwin = 0
-    let srcbuf = bufnr()
+    let srcbuf = bufnr('%')
     let srcwin = win_getid()
     let srcinfo = getbufvar(srcbuf, s:src_field, {})
     if len(srcinfo) > 0
@@ -47,16 +54,27 @@ func! s:RunInShell(cmd)
         endif
     endif
     let posinfo = s:GetPosInfo()
-    let termbuf = term_start(['bash', '-c', a:cmd],
-                \ {'term_name': "F5: " . a:cmd,
-                \ 'vertical': get(posinfo, 'vert'),
-                \ 'curwin': curwin})
-    let termwin = win_getid()
-    if !curwin
-        call win_splitmove(termwin, srcwin,
-                    \ {'vertical': get(posinfo, 'vert'),
-                    \ 'rightbelow': get(posinfo, 'rb')})
+    if curwin
+        call s:TermStart(a:cmd, 1, 0)
+    else
+        let vert = get(posinfo, 'vert')
+        let rb = get(posinfo, 'rb')
+        if rb
+            exec "rightbelow call term_start(" .
+                        \ "['bash', '-c', a:cmd]," .
+                        \ "{'term_name': 'F5: ' . a:cmd,"
+                        \ "'vertical': vert,"
+                        \ "'curwin': 0})"
+        else
+            exec "leftabove call term_start(" .
+                        \ "['bash', '-c', a:cmd]," .
+                        \ "{'term_name': 'F5: ' . a:cmd,"
+                        \ "'vertical': vert,"
+                        \ "'curwin': 0})"
+        endif
     endif
+    let termbuf = bufnr('%')
+    let termwin = win_getid()
 
     call setbufvar(srcbuf, s:src_field, {'termbuf': termbuf})
     call setbufvar(termbuf, s:term_field, {'srcbuf': srcbuf})
@@ -65,8 +83,8 @@ endfunc
 " 编译或运行
 " buffer和terminal一对一
 func! f5#Run()
-    if getbufvar(bufnr(), '&buftype') == 'terminal'
-        let termbuf = bufnr()
+    if getbufvar(bufnr('%'), '&buftype') == 'terminal'
+        let termbuf = bufnr('%')
         if term_getstatus(termbuf) != 'finished' | return | endif
 
         let terminfo = getbufvar(termbuf, s:term_field, {})
